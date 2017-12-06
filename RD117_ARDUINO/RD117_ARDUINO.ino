@@ -119,7 +119,7 @@ void setup() {
 
   maxim_max30102_reset(); //resets the MAX30102
   // initialize serial communication at 115200 bits per second:
-  Serial.begin(115200);
+  Serial.begin(9600);
   pinMode(10, INPUT);  //pin D10 connects to the interrupt output pin of the MAX30102
   delay(1000);
   maxim_max30102_read_reg(REG_INTR_STATUS_1,&uch_dummy);  //Reads/clears the interrupt status register
@@ -142,6 +142,14 @@ void setup() {
 
 // the loop routine runs over and over again forever:
 void loop() {
+  getPPG();
+}
+
+
+
+///////////////////////////////////// Fcx /////////////////////////////////
+
+void getPPG(){
   uint32_t un_min, un_max, un_prev_data, un_brightness;  //variables to calculate the on-board LED brightness that reflects the heartbeats
   int32_t i;
   float f_temp;
@@ -250,4 +258,8 @@ void loop() {
     maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
   }
 }
+
+
+
+
  
