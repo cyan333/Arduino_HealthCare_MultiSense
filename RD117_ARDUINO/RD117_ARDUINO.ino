@@ -78,6 +78,13 @@
 #include "algorithm.h"
 #include "max30102.h"
 
+#include <SPI.h>
+#include <ADXL362.h>
+
+int16_t temp;
+int16_t XValue, YValue, ZValue, Temperature;
+ADXL362 xl;
+
 //if Adafruit Flora development board is chosen, include NeoPixel library and define an NeoPixel object
 #if defined(ARDUINO_AVR_FLORA8)
 #include "adafruit_neopixel.h"
@@ -86,6 +93,8 @@ Adafruit_NeoPixel LED = Adafruit_NeoPixel(1, 8, NEO_GRB + NEO_KHZ800);
 #endif
 
 #define MAX_BRIGHTNESS 255
+#define PPG_INTERRUPT 8
+#define ADXL_CS 10
 
 #if defined(ARDUINO_AVR_UNO)
 //Arduino Uno doesn't have enough SRAM to store 100 samples of IR led data and red led data in 32-bit format
@@ -120,28 +129,39 @@ void setup() {
   maxim_max30102_reset(); //resets the MAX30102
   // initialize serial communication at 115200 bits per second:
   Serial.begin(9600);
-  pinMode(10, INPUT);  //pin D10 connects to the interrupt output pin of the MAX30102
+
+  //for ADXL
+  xl.begin(ADXL_CS);       // Setup SPI protocol, issue device soft reset
+  xl.beginMeasure();              // Switch ADXL362 to measure mode
+
+  //for PPG
+  pinMode(PPG_INTERRUPT, INPUT);  //pin D10 connects to the interrupt output pin of the MAX30102
   delay(1000);
   maxim_max30102_read_reg(REG_INTR_STATUS_1,&uch_dummy);  //Reads/clears the interrupt status register
-  while(Serial.available()==0)  //wait until user presses a key
-  {
+//  while(Serial.available()==0)  //wait until user presses a key
+//  {
     Serial.write(27);       // ESC command
     Serial.print(F("[2J"));    // clear screen command
-#if defined(ARDUINO_AVR_LILYPAD_USB)    
-    Serial.println(F("Lilypad"));
-#endif
-#if defined(ARDUINO_AVR_FLORA8)
-    Serial.println(F("Adafruit Flora"));
-#endif
-    Serial.println(F("Press any key to start conversion"));
+//    Serial.println(F("Press any key to start conversion"));
     delay(1000);
-  }
+//  }
   uch_dummy=Serial.read();
   maxim_max30102_init();  //initialize the MAX30102
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
+    // read all three axis in burst to ensure all measurements correspond to same sample time
+//  xl.readXYZTData(XValue, YValue, ZValue, Temperature);  
+//  Serial.print("XVALUE=");
+//  Serial.print(XValue);   
+//  Serial.print("\tYVALUE=");
+//  Serial.print(YValue);  
+//  Serial.print("\tZVALUE=");
+//  Serial.print(ZValue);  
+//  Serial.print("\tTEMPERATURE=");
+//  Serial.println(Temperature);   
+//  delay(1000);                // Arbitrary delay to make serial monitor easier to observe
   getPPG();
 }
 
@@ -163,21 +183,22 @@ void getPPG(){
   //read the first 100 samples, and determine the signal range
   for(i=0;i<n_ir_buffer_length;i++)
   {
-    while(digitalRead(10)==1);  //wait until the interrupt pin asserts
+    while(digitalRead(PPG_INTERRUPT)==1);  //wait until the interrupt pin asserts
     maxim_max30102_read_fifo((aun_red_buffer+i), (aun_ir_buffer+i));  //read from MAX30102 FIFO
     
     if(un_min>aun_red_buffer[i])
       un_min=aun_red_buffer[i];  //update signal min
     if(un_max<aun_red_buffer[i])
       un_max=aun_red_buffer[i];  //update signal max
-    Serial.print(F("red="));
+//    Serial.print(F("red="));
     Serial.print(aun_red_buffer[i], DEC);
-    Serial.print(F(", ir="));
-    Serial.println(aun_ir_buffer[i], DEC);
+    Serial.print("\n");
+//    Serial.print(F(", ir="));
+//    Serial.println(aun_ir_buffer[i], DEC);
   }
   un_prev_data=aun_red_buffer[i];
   //calculate heart rate and SpO2 after first 100 samples (first 4 seconds of samples)
-  maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
+//  maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
 
   //Continuously taking samples from MAX30102.  Heart rate and SpO2 are calculated every 1 second
   while(1)
@@ -203,7 +224,7 @@ void getPPG(){
     for(i=75;i<100;i++)
     {
       un_prev_data=aun_red_buffer[i-1];
-      while(digitalRead(10)==1);
+      while(digitalRead(PPG_INTERRUPT)==1);
       digitalWrite(9, !digitalRead(9));
       maxim_max30102_read_fifo((aun_red_buffer+i), (aun_ir_buffer+i));
 
@@ -228,6 +249,7 @@ void getPPG(){
         if(un_brightness>MAX_BRIGHTNESS)
           un_brightness=MAX_BRIGHTNESS;
       }
+      
 #if defined(ARDUINO_AVR_LILYPAD_USB)  
       analogWrite(13, un_brightness);
 #endif
@@ -238,24 +260,14 @@ void getPPG(){
 #endif
 
       //send samples and calculation result to terminal program through UART
-      Serial.print(F("red="));
+//      Serial.print(F("red="));
       Serial.print(aun_red_buffer[i], DEC);
-      Serial.print(F(", ir="));
-      Serial.print(aun_ir_buffer[i], DEC);
-      
-      Serial.print(F(", HR="));
-      Serial.print(n_heart_rate, DEC);
-      
-      Serial.print(F(", HRvalid="));
-      Serial.print(ch_hr_valid, DEC);
-      
-      Serial.print(F(", SPO2="));
-      Serial.print(n_spo2, DEC);
+      Serial.print("\n");
+//      Serial.print(F(", ir="));
+//      Serial.print(aun_ir_buffer[i], DEC);
 
-      Serial.print(F(", SPO2Valid="));
-      Serial.println(ch_spo2_valid, DEC);
     }
-    maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
+//    maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
   }
 }
 
