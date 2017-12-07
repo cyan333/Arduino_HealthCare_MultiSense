@@ -155,11 +155,12 @@ void setup() {
   uch_dummy=Serial.read();
   maxim_max30102_init();  //initialize the MAX30102
   delay(1000);
-  maxim_max30102_LED_turnOFF();
+//  maxim_max30102_LED_turnOFF();
 }
 
 // the loop routine runs over and over again forever:
 void loop() {
+//  Serial.print("hihihihihih\n");
   buttonState = digitalRead(BUTTON_PIN);
   int16_t i;
   int16_t PPG_i;
@@ -169,7 +170,7 @@ void loop() {
     Serial.print(buttonState);
     isStable = checkStable();
     if (isStable == true){
-      
+      delay(500);
       Serial.print("stable\n");
       getPPG();
     }
@@ -252,8 +253,8 @@ void getPPG(){
   
   n_ir_buffer_length=100;  //buffer length of 100 stores 4 seconds of samples running at 25sps
   
-  maxim_max30102_LED_turnON();
-  delay(100);   
+//  maxim_max30102_LED_turnON();
+//  delay(1000);   
   //read the first 100 samples, and determine the signal range
   for(i=0;i<n_ir_buffer_length;i++)
   {
@@ -270,8 +271,8 @@ void getPPG(){
 //    Serial.print(F(", ir="));
 //    Serial.println(aun_ir_buffer[i], DEC);
   }
-  delay(100); 
-  maxim_max30102_LED_turnOFF();
+//  delay(100); 
+//  maxim_max30102_LED_turnOFF();
 }
 
 
