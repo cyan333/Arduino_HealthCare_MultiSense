@@ -146,6 +146,26 @@ bool maxim_max30102_init()
   return true;  
 }
 
+bool maxim_max30102_LED_turnOFF(){
+  if(!maxim_max30102_write_reg(REG_LED1_PA,0x00))   //Choose value for ~ 7mA for LED1
+    return false;
+  if(!maxim_max30102_write_reg(REG_LED2_PA,0x00))   // Choose value for ~ 7mA for LED2
+    return false;
+  if(!maxim_max30102_write_reg(REG_PILOT_PA,0x00))   // Choose value for ~ 25mA for Pilot LED
+    return false;
+  return true; 
+}
+
+bool maxim_max30102_LED_turnON(){
+  if(!maxim_max30102_write_reg(REG_LED1_PA,0x24))   //Choose value for ~ 7mA for LED1
+    return false;
+  if(!maxim_max30102_write_reg(REG_LED2_PA,0x24))   // Choose value for ~ 7mA for LED2
+    return false;
+  if(!maxim_max30102_write_reg(REG_PILOT_PA,0x7f))   // Choose value for ~ 25mA for Pilot LED
+    return false;
+  return true; 
+}
+
 #if defined(ARDUINO_AVR_UNO)
 //Arduino Uno doesn't have enough SRAM to store 100 samples of IR led data and red led data in 32-bit format
 //To solve this problem, 16-bit MSB of the sampled data will be truncated.  Samples become 16-bit data.
