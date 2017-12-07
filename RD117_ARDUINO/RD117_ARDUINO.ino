@@ -201,8 +201,7 @@ void getPPG(){
 //  maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
 
   //Continuously taking samples from MAX30102.  Heart rate and SpO2 are calculated every 1 second
-  while(1)
-  {
+
     i=0;
     un_min=0x3FFFF;
     un_max=0;
@@ -268,7 +267,7 @@ void getPPG(){
 
     }
 //    maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, n_ir_buffer_length, aun_red_buffer, &n_spo2, &ch_spo2_valid, &n_heart_rate, &ch_hr_valid); 
-  }
+
 }
 
 
