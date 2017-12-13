@@ -1,9 +1,14 @@
-//ADT7320 Interfacing with Arduino LaunchPAD (Rev 0)  
-// Released under CC-SA Creative commons Share Alike Licence  
+ 
 
   
 #include <SPI.h>  
 #include <ADXL362.h>
+#include <Arduino.h>
+#include "algorithm.h"
+#include "max30102.h"
+
+
+#define PPG_INTERRUPT 8
 
 
 const int chipSelectPin_Temp = 10;  
@@ -13,6 +18,11 @@ ADXL362 xl;
 
 int16_t temp;
 int16_t XValue, YValue, ZValue, Temperature;
+
+int32_t n_ir_buffer_length; //data length
+uint8_t uch_dummy;
+uint32_t aun_ir_buffer[100]; //infrared LED sensor data
+uint32_t aun_red_buffer[100];  //red LED sensor data
   
 void setup() {  
   Serial.begin(9600);  
@@ -24,8 +34,16 @@ void setup() {
 
   xl.begin(chipSelectPin_ADXL);   // Setup SPI protocol, issue device soft reset
   xl.beginMeasure();              // Switch ADXL362 to measure mode  
-  
-  delay(100);  
+
+  maxim_max30102_reset(); //resets the MAX30102
+
+  pinMode(PPG_INTERRUPT, INPUT);  //pin D10 connects to the interrupt output pin of the MAX30102
+  delay(1000);
+  maxim_max30102_read_reg(REG_INTR_STATUS_1,&uch_dummy);  //Reads/clears the interrupt status register
+
+  uch_dummy=Serial.read();
+  maxim_max30102_init();  //initialize the MAX30102
+  delay(1000);
 }  
   
   
@@ -44,8 +62,45 @@ void loop() {
     delay(500);  
   
   readADXLRawData();
+  delay(1000);
+  getPPG();
   delay(100);
 }  
+
+
+void getPPG(){
+  uint32_t un_min, un_max, un_prev_data, un_brightness;  //variables to calculate the on-board LED brightness that reflects the heartbeats
+  int32_t i;
+  float f_temp;
+  
+  un_brightness=0;
+  un_min=0x3FFFF;
+  un_max=0;
+  
+  n_ir_buffer_length=100;  //buffer length of 100 stores 4 seconds of samples running at 25sps
+  
+//  maxim_max30102_LED_turnON();
+//  delay(1000);   
+  //read the first 100 samples, and determine the signal range
+  for(i=0;i<n_ir_buffer_length;i++)
+  {
+    while(digitalRead(PPG_INTERRUPT)==1);  //wait until the interrupt pin asserts
+    maxim_max30102_read_fifo((aun_red_buffer+i), (aun_ir_buffer+i));  //read from MAX30102 FIFO
+    
+    if(un_min>aun_red_buffer[i])
+      un_min=aun_red_buffer[i];  //update signal min
+    if(un_max<aun_red_buffer[i])
+      un_max=aun_red_buffer[i];  //update signal max
+//    Serial.print(F("red="));
+    Serial.print(aun_red_buffer[i], DEC);
+    Serial.print("\n");
+//    Serial.print(F(", ir="));
+//    Serial.println(aun_ir_buffer[i], DEC);
+  }
+//  delay(100); 
+//  maxim_max30102_LED_turnOFF();
+}
+
 
 void readADXLRawData(){
   // read all three axis in burst to ensure all measurements correspond to same sample time
